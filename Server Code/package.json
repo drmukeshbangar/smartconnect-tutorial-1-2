@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "start-server": "node server.js"
+  },
+ 
+  "devDependencies": {
+    "webpack-dev-server": "^4.7.4"
+  },
+  "dependencies": {
+    "socket.io": "~2.4.1"
+  }
+  
+}
