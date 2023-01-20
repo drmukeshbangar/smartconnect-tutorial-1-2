@@ -1,0 +1,86 @@
+
+name: SLSA generic generator
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # ========================================================
+      #
+      # Step 1: Build your artifacts.
+      #
+      # ========================================================
+      - name: Build artifacts
+        run: |
+            # These are some amazing artifacts.
+            echo "artifact1" > artifact1
+            echo "artifact2" > artifact2
+
+      # ========================================================
+      #
+      # Step 2: Add a step to generate the provenance subjects
+      #         as shown below. Update the sha256 sum arguments
+      #         to include all binaries that you generate
+      #         provenance for.
+      #
+      # ========================================================
+      - name: Generate subject for provenance
+        id: hash
+        run: |
+          set -euo pipefail
+
+          # List the artifacts the provenance will refer to.
+          files=$(ls artifact*)
+          # Generate the subjects (base64 encoded).
+          echo "hashes=$(sha256sum $files | base64 -w0)" >> "${GITHUB_OUTPUT}"
+
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read   # To read the workflow path.
+      id-token: write # To sign the provenance.
+      contents: write # To add assets to a release.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.1
+    with:
+      base64-subjects: "${{ needs.build.outputs.digests }}"
+      upload-assets: true # Optional: Upload to a new release
+      # Optional: Set the release name and tag
+      release-name: "My Release"
+      release-tag: "v1.0.0"
+
+# ========================================================
+#
+# Step 3: Add a step to create an APK from the source code
+#
+# ========================================================
+- name: Create APK
+  run: |
+      # Build the APK from the source code using Gradle
+      gradle assembleRelease
+
+# ========================================================
+#
+# Step 4: Add a step to upload the APK to the release
+#
+# ========================================================
+- name: Upload APK
+  uses: actions/upload-release-asset@v1
+  with:
+    # Replace the following with the path to the APK
+    asset_path: path/to/app/build/outputs/apk/release/app-release.apk
+    # Replace the following with the tag of the release
+    tag: ${{ github.event.release.tag_name }}
+    # Replace the following with the name of the APK
+    asset_name: my_app.apk
+    # Replace the following with the release name
+    release_name: ${{ github.event.release.name }}
+
